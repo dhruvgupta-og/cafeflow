@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isPlatformAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email in ['admin@cafeflow.com', 'dhruvedition@gmail.com'] ||
+        exists(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'platform_admin')
+      );
+    }
+
+    function isCafeStaffOrOwner(cafeId) {
+      return isPlatformAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.cafeId == cafeId
+      );
+    }
+
+    // Platform admin collection
+    match /platformAdmins/{uid} {
+      allow read, write: if true;
+    }
+
+    // User profiles collection
+    match /users/{uid} {
+      allow read, write: if true;
+    }
+
+    // Global Invitations collection
+    match /invitations/{token} {
+      allow read, write: if true;
+    }
+
+    // Test connectivity
+    match /test/{testId} {
+      allow read, write: if true;
+    }
+
+    // Cafes root collection and subcollections
+    match /cafes/{cafeId} {
+      // Public can read cafe information for customer ordering and browsing
+      // Platform admin and cafe owners can manage cafes
+      allow read, write: if true;
+
+      // Tables subcollection
+      match /tables/{tableId} {
+        allow read, write: if true;
+      }
+
+      // Menu categories subcollection
+      match /menuCategories/{categoryId} {
+        allow read, write: if true;
+
+        // Menu items nested subcollection
+        match /items/{itemId} {
+          allow read, write: if true;
+        }
+      }
+
+      // Orders subcollection
+      match /orders/{orderId} {
+        allow read, write: if true;
+      }
+
+      // Bills subcollection
+      match /bills/{billId} {
+        allow read, write: if true;
+      }
+
+      // Alerts subcollection (call waiter, assistance)
+      match /alerts/{alertId} {
+        allow read, write: if true;
+      }
+
+      // Cafe-scoped invitations subcollection
+      match /invitations/{token} {
+        allow read, write: if true;
+      }
+    }
+  }
+}

@@ -1,0 +1,195 @@
+{
+  "entities": {
+    "Cafe": {
+      "title": "Cafe",
+      "description": "Tenant cafe profile and operational configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "plan": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "settings": { "type": "object" }
+      },
+      "required": ["name", "email", "plan", "status", "createdAt"]
+    },
+    "Table": {
+      "title": "Table",
+      "description": "Dining table and seating record for a cafe",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "status": { "type": "string" },
+        "currentBillId": { "type": "string" }
+      },
+      "required": ["label", "status"]
+    },
+    "MenuCategory": {
+      "title": "MenuCategory",
+      "description": "Category for classifying menu items",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sortOrder": { "type": "number" }
+      },
+      "required": ["name"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "Food or drink item on the cafe menu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "photoUrl": { "type": "string" },
+        "isVeg": { "type": "boolean" },
+        "isAvailable": { "type": "boolean" },
+        "addOns": { "type": "array" }
+      },
+      "required": ["name", "price", "isAvailable"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order dispatched to kitchen and staff",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cafeId": { "type": "string" },
+        "tableId": { "type": "string" },
+        "tableLabel": { "type": "string" },
+        "items": { "type": "array" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "customerSessionId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "specialInstructions": { "type": "string" }
+      },
+      "required": ["tableId", "items", "status", "createdAt"]
+    },
+    "Bill": {
+      "title": "Bill",
+      "description": "Consolidated bill invoice for a dining session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cafeId": { "type": "string" },
+        "tableId": { "type": "string" },
+        "orderIds": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "tax": { "type": "number" },
+        "serviceCharge": { "type": "number" },
+        "total": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["tableId", "subtotal", "total", "status", "createdAt"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Real-time call waiter or assistance alert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tableId": { "type": "string" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "resolved": { "type": "boolean" }
+      },
+      "required": ["tableId", "type", "createdAt"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "Cafe owner onboarding token and invitation state",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "token": { "type": "string" },
+        "cafeId": { "type": "string" },
+        "cafeName": { "type": "string" },
+        "ownerEmail": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "plan": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "expiresAt": { "type": "string" },
+        "acceptedAt": { "type": "string" }
+      },
+      "required": ["token", "cafeId", "ownerEmail", "status", "createdAt", "expiresAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account role and cafe association",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "cafeId": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/cafes/{cafeId}": {
+      "schema": { "$ref": "#/entities/Cafe" },
+      "description": "Tenant cafe root record"
+    },
+    "/cafes/{cafeId}/tables/{tableId}": {
+      "schema": { "$ref": "#/entities/Table" },
+      "description": "Cafe table arrangement"
+    },
+    "/cafes/{cafeId}/menuCategories/{categoryId}": {
+      "schema": { "$ref": "#/entities/MenuCategory" },
+      "description": "Menu categories"
+    },
+    "/cafes/{cafeId}/menuCategories/{categoryId}/items/{itemId}": {
+      "schema": { "$ref": "#/entities/MenuItem" },
+      "description": "Menu items"
+    },
+    "/cafes/{cafeId}/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Real-time kitchen orders"
+    },
+    "/cafes/{cafeId}/bills/{billId}": {
+      "schema": { "$ref": "#/entities/Bill" },
+      "description": "Cafe customer bills"
+    },
+    "/cafes/{cafeId}/alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/Alert" },
+      "description": "Staff call alerts"
+    },
+    "/cafes/{cafeId}/invitations/{token}": {
+      "schema": { "$ref": "#/entities/Invitation" },
+      "description": "Cafe-scoped owner invitation records"
+    },
+    "/invitations/{token}": {
+      "schema": { "$ref": "#/entities/Invitation" },
+      "description": "Global invitation token records"
+    },
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile records"
+    },
+    "/platformAdmins/{uid}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Platform administrator access list"
+    }
+  }
+}
