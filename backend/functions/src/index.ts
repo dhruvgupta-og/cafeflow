@@ -94,6 +94,10 @@ export const createCafeAndOwner = onCall(
       phone,
       plan = 'Pro',
       logoUrl = '',
+      currency = '₹',
+      taxPercent = 8.5,
+      serviceChargePercent = 5.0,
+      openingHours = '8:00 AM - 10:00 PM',
     } = request.data as {
       cafeName: string;
       address: string;
@@ -102,6 +106,10 @@ export const createCafeAndOwner = onCall(
       phone: string;
       plan?: string;
       logoUrl?: string;
+      currency?: string;
+      taxPercent?: number;
+      serviceChargePercent?: number;
+      openingHours?: string;
     };
 
     if (!cafeName || !ownerEmail) {
@@ -156,10 +164,10 @@ export const createCafeAndOwner = onCall(
       status: 'active',
       createdAt: now,
       settings: {
-        taxPercent: 8.5,
-        serviceChargePercent: 5.0,
-        currency: '₹',
-        openingHours: '8:00 AM - 10:00 PM',
+        taxPercent,
+        serviceChargePercent,
+        currency,
+        openingHours,
       },
       stats: {
         totalOrders: 0,

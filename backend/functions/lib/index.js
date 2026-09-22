@@ -8,7 +8,7 @@
  *  - onOrderStatusChange  (onDocumentUpdated) — analytics rollup when an order is paid
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onOrderStatusChange = exports.addStaffMember = exports.createCafeAndOwner = void 0;
+exports.onOrderStatusChange = exports.addStaffMember = exports.acceptInvitation = exports.createCafeAndOwner = void 0;
 const app_1 = require("firebase-admin/app");
 const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
@@ -70,7 +70,7 @@ function assertCafeOwner(auth, cafeId) {
 // ─────────────────────────────────────────────────────────────────────────────
 exports.createCafeAndOwner = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
     assertPlatformAdmin(request.auth);
-    const { cafeName, address, ownerName, ownerEmail, phone, plan = 'Pro', logoUrl = '', } = request.data;
+    const { cafeName, address, ownerName, ownerEmail, phone, plan = 'Pro', logoUrl = '', currency = '₹', taxPercent = 8.5, serviceChargePercent = 5.0, openingHours = '8:00 AM - 10:00 PM', } = request.data;
     if (!cafeName || !ownerEmail) {
         throw new https_1.HttpsError('invalid-argument', 'cafeName and ownerEmail are required.');
     }
@@ -119,10 +119,10 @@ exports.createCafeAndOwner = (0, https_1.onCall)({ region: 'us-central1' }, asyn
         status: 'active',
         createdAt: now,
         settings: {
-            taxPercent: 8.5,
-            serviceChargePercent: 5.0,
-            currency: '$',
-            openingHours: '8:00 AM - 10:00 PM',
+            taxPercent,
+            serviceChargePercent,
+            currency,
+            openingHours,
         },
         stats: {
             totalOrders: 0,
@@ -144,6 +144,85 @@ exports.createCafeAndOwner = (0, https_1.onCall)({ region: 'us-central1' }, asyn
         ownerUid,
         tempPassword, // Admin UI should display this once and instruct owner to change it
     };
+});
+// ─────────────────────────────────────────────────────────────────────────────
+// acceptInvitation
+//
+// Called by the Cafe Owner via the invite link to set their master password
+// and activate their account.
+//
+// Input:
+//   { token, newPassword, ownerName }
+//
+// Actions:
+//   1. Validates the invitation token
+//   2. Finds the pre-created Auth user by the invitation's ownerEmail
+//   3. Updates the Auth user's password and displayName
+//   4. Marks the invitation as accepted in Firestore
+// ─────────────────────────────────────────────────────────────────────────────
+exports.acceptInvitation = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    const { token, newPassword, ownerName } = request.data;
+    if (!token) {
+        throw new https_1.HttpsError('invalid-argument', 'Invitation token is required.');
+    }
+    // 1. Retrieve the invitation document
+    const inviteRef = adminDb.doc(`invitations/${token}`);
+    const inviteSnap = await inviteRef.get();
+    if (!inviteSnap.exists) {
+        throw new https_1.HttpsError('not-found', 'Invalid or expired invitation link.');
+    }
+    const inviteData = inviteSnap.data();
+    if (inviteData.status === 'accepted') {
+        throw new https_1.HttpsError('already-exists', 'This invitation has already been accepted.');
+    }
+    const isExpired = new Date(inviteData.expiresAt).getTime() < Date.now();
+    if (isExpired || inviteData.status === 'expired') {
+        throw new https_1.HttpsError('failed-precondition', 'This invitation link has expired.');
+    }
+    const ownerEmail = inviteData.ownerEmail;
+    const cafeId = inviteData.cafeId;
+    // 2. Update the Auth user
+    try {
+        const userRecord = await adminAuth.getUserByEmail(ownerEmail);
+        const updatePayload = {};
+        if (newPassword)
+            updatePayload.password = newPassword;
+        if (ownerName)
+            updatePayload.displayName = ownerName;
+        if (Object.keys(updatePayload).length > 0) {
+            await adminAuth.updateUser(userRecord.uid, updatePayload);
+        }
+        // Double check claims
+        const claims = userRecord.customClaims || {};
+        if (claims.role !== 'cafe_owner' || claims.cafeId !== cafeId) {
+            await adminAuth.setCustomUserClaims(userRecord.uid, Object.assign(Object.assign({}, claims), { role: 'cafe_owner', cafeId }));
+        }
+        // Also update the users profile if ownerName changed
+        if (ownerName) {
+            await adminDb.doc(`users/${userRecord.uid}`).set({ name: ownerName }, { merge: true });
+        }
+    }
+    catch (err) {
+        throw new https_1.HttpsError('internal', `Failed to update user account: ${err.message}`);
+    }
+    // 3. Mark invitation as accepted
+    const acceptedAt = new Date().toISOString();
+    await inviteRef.update({
+        status: 'accepted',
+        acceptedAt,
+    });
+    // Also update the subcollection mirror if it exists
+    const subInviteRef = adminDb.doc(`cafes/${cafeId}/invitations/${token}`);
+    try {
+        await subInviteRef.update({
+            status: 'accepted',
+            acceptedAt,
+        });
+    }
+    catch (e) {
+        // Ignore if subcollection doc doesn't exist
+    }
+    return { success: true };
 });
 // ─────────────────────────────────────────────────────────────────────────────
 // addStaffMember

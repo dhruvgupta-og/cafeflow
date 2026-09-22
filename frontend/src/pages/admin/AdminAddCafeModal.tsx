@@ -61,10 +61,10 @@ export const AdminAddCafeModal: React.FC<Props> = ({ isOpen, onClose, onSuccess,
       // 1. Call Cloud Function to provision cafe and owner account securely
       const createCafeAndOwnerFn = httpsCallable(functions, 'createCafeAndOwner');
       const result = await createCafeAndOwnerFn({
-        name,
+        cafeName: name,
         address,
         ownerName,
-        email,
+        ownerEmail: email,
         phone,
         logoUrl,
         plan,
