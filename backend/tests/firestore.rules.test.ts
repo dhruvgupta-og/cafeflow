@@ -121,5 +121,52 @@ describe('CafeFlow Firestore Security Rules', () => {
         })
       );
     });
+
+    it('anonymous GET reflects status updates made by staff', async () => {
+      // Staff updates status; anonymous customer can still GET the same doc
+      const dbAnon = testEnv.unauthenticatedContext().firestore();
+      const dbStaff = testEnv.authenticatedContext('staff1', { role: 'staff', cafeId: 'cafe-abc' }).firestore();
+
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('cafes').doc('cafe-abc').collection('orders').doc('order2').set({
+          status: 'New',
+          tableId: 'T2'
+        });
+      });
+
+      // Staff updates status
+      await assertSucceeds(
+        dbStaff.collection('cafes').doc('cafe-abc').collection('orders').doc('order2').update({
+          status: 'Preparing'
+        })
+      );
+
+      // Anonymous customer can still read the doc (GET, not LIST)
+      const snap = await assertSucceeds(
+        dbAnon.collection('cafes').doc('cafe-abc').collection('orders').doc('order2').get()
+      );
+      expect((snap as any).data().status).toBe('Preparing');
+    });
+
+    it('denies anonymous LIST even when orders exist', async () => {
+      const dbAnon = testEnv.unauthenticatedContext().firestore();
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('cafes').doc('cafe-abc').collection('orders').doc('order3').set({
+          status: 'New',
+          tableId: 'T3'
+        });
+      });
+      // LIST (collection query) must be denied for anonymous users
+      await assertFails(
+        dbAnon.collection('cafes').doc('cafe-abc').collection('orders').get()
+      );
+    });
+
+    it('allows staff to LIST orders for their cafe', async () => {
+      const dbStaff = testEnv.authenticatedContext('staff1', { role: 'staff', cafeId: 'cafe-abc' }).firestore();
+      await assertSucceeds(
+        dbStaff.collection('cafes').doc('cafe-abc').collection('orders').get()
+      );
+    });
   });
 });

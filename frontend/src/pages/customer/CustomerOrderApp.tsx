@@ -7,9 +7,6 @@ import {
   getDocs,
   setDoc,
   onSnapshot,
-  query,
-  where,
-  orderBy
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../lib/firebase';
@@ -104,6 +101,14 @@ export const CustomerOrderApp: React.FC = () => {
     catch { return []; }
   });
 
+  // Per-session tracked order IDs — persisted to localStorage so a page refresh
+  // keeps the customer's status tab alive. Keyed by cafeId+tableId.
+  const ORDER_IDS_KEY = `cafeflow_orderids_${cafeId}_${tableId}`;
+  const [trackedOrderIds, setTrackedOrderIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(ORDER_IDS_KEY) || '[]'); }
+    catch { return []; }
+  });
+
   // Load Cafe & Table Data
   useEffect(() => {
     if (!cafeId) return;
@@ -158,27 +163,61 @@ export const CustomerOrderApp: React.FC = () => {
     };
     loadMenu();
 
-    // 4. Real-time Active Orders for this table
-    const ordersQuery = query(collection(db, `cafes/${cafeId}/orders`));
-    const unsubOrders = onSnapshot(ordersQuery, (snap) => {
-      const list: Order[] = [];
-      snap.forEach(d => {
-        const o = { id: d.id, ...d.data() } as Order;
-        if (o.tableId === tableId && ['New', 'Accepted', 'Preparing', 'Ready', 'Served'].includes(o.status)) {
-          list.push(o);
-        }
-      });
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setActiveOrders(list);
-    }, (err) => {
-      console.warn('Orders snapshot error:', err);
-    });
-
     return () => {
       unsubCafe();
-      unsubOrders();
     };
   }, [cafeId, tableId]);
+
+  // Per-doc GET listeners — one per tracked order ID.
+  // Uses `allow get: if true` (already in rules), never LIST.
+  // Unsubscribes from completed/cancelled orders and prunes them from state.
+  useEffect(() => {
+    if (!cafeId || trackedOrderIds.length === 0) {
+      setActiveOrders([]);
+      return;
+    }
+
+    const ACTIVE_STATUSES = new Set(['New', 'Accepted', 'Preparing', 'Ready', 'Served']);
+    const orderMap = new Map<string, Order>();
+    const unsubs: (() => void)[] = [];
+
+    const rebuild = () => {
+      const list = Array.from(orderMap.values())
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setActiveOrders(list);
+    };
+
+    for (const orderId of trackedOrderIds) {
+      const unsub = onSnapshot(
+        doc(db, `cafes/${cafeId}/orders/${orderId}`),
+        (snap) => {
+          if (!snap.exists()) {
+            orderMap.delete(orderId);
+          } else {
+            const order = { id: snap.id, ...snap.data() } as Order;
+            if (ACTIVE_STATUSES.has(order.status)) {
+              orderMap.set(orderId, order);
+            } else {
+              // Order is done — remove from map and prune from tracked list
+              orderMap.delete(orderId);
+              setTrackedOrderIds(prev => {
+                const next = prev.filter(id => id !== orderId);
+                localStorage.setItem(ORDER_IDS_KEY, JSON.stringify(next));
+                return next;
+              });
+            }
+          }
+          rebuild();
+        },
+        (err) => {
+          console.warn(`Order ${orderId} snapshot error:`, err);
+        }
+      );
+      unsubs.push(unsub);
+    }
+
+    return () => unsubs.forEach(u => u());
+  }, [cafeId, trackedOrderIds.join(',')]);
 
   // Load AI suggestions once menu is ready
   useEffect(() => {
@@ -324,14 +363,13 @@ export const CustomerOrderApp: React.FC = () => {
       const data = result.data as any;
       const orderId = data.orderId;
 
-      // 2. Set table occupied
-      if (tableId) {
-        await setDoc(doc(db, `cafes/${cafeId}/tables`, tableId), {
-          id: tableId,
-          label: table?.label || `Table ${tableId}`,
-          status: 'occupied'
-        }, { merge: true });
-      }
+      // 2. Track this order ID locally so the per-doc listener picks it up.
+      //    Table occupation is now handled inside the Cloud Function (Admin SDK).
+      setTrackedOrderIds(prev => {
+        const next = prev.includes(orderId) ? prev : [...prev, orderId];
+        localStorage.setItem(ORDER_IDS_KEY, JSON.stringify(next));
+        return next;
+      });
 
       // 3. Save item names to session history for repeat ordering
       const itemNames = cart.map(l => l.menuItem.name);

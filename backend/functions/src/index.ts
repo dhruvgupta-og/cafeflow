@@ -540,6 +540,15 @@ export const placeOrder = onCall(
 
     await newOrderRef.set(orderData);
 
+    // 5. Mark the table occupied — done here server-side so the anonymous customer
+    //    never needs write access to the tables collection.
+    if (tableId && tableId !== 'Walk-in') {
+      await adminDb.doc(`cafes/${cafeId}/tables/${tableId}`).set(
+        { status: 'occupied' },
+        { merge: true }
+      );
+    }
+
     return { orderId: newOrderRef.id };
   }
 );
