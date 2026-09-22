@@ -83,8 +83,8 @@ export const AdminAddCafeModal: React.FC<Props> = ({ isOpen, onClose, onSuccess,
       // 3. Generate Invitation Token & link for owner onboarding
       let inviteUrl = '';
       try {
-        const inv = await createCafeInvitation(newCafe);
-        inviteUrl = getInviteUrl(inv.token);
+        const inv = await createCafeInvitation(newCafe, 'cafe_owner');
+        inviteUrl = inv.inviteUrl;
       } catch (invErr) {
         console.warn('Invitation creation note:', invErr);
       }

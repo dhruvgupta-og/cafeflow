@@ -63,6 +63,14 @@ export const CafeDashboardLayout: React.FC = () => {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'orders' | 'tables' | 'menu' | 'billing' | 'sales' | 'settings'>('orders');
+
+  const isOwner = userProfile?.role === 'cafe_owner' || userProfile?.role === 'platform_admin';
+  const perms = userProfile?.permissions || {};
+  
+  const canManageTables = isOwner || perms.canManageTables;
+  const canManageMenu = isOwner || perms.canManageMenu;
+  const canViewBilling = isOwner || perms.canViewBilling || perms.canManageBilling;
+  const canManageSettings = isOwner || perms.canManageStaff;
   const [cafe, setCafe] = useState<Cafe | null>(null);
   const [tables, setTables] = useState<Table[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -324,64 +332,74 @@ export const CafeDashboardLayout: React.FC = () => {
           </button>
 
           {/* Tables */}
-          <button
-            onClick={() => setActiveTab('tables')}
-            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
-              activeTab === 'tables'
-                ? 'bg-amber-500 text-stone-950 shadow-md'
-                : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
-            }`}
-          >
-            <Layers className="w-4 h-4" /> Tables & QR ({tables.length})
-          </button>
+          {canManageTables && (
+            <button
+              onClick={() => setActiveTab('tables')}
+              className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === 'tables'
+                  ? 'bg-amber-500 text-stone-950 shadow-md'
+                  : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
+              }`}
+            >
+              <Layers className="w-4 h-4" /> Tables & QR ({tables.length})
+            </button>
+          )}
 
           {/* Menu */}
-          <button
-            onClick={() => setActiveTab('menu')}
-            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
-              activeTab === 'menu'
-                ? 'bg-amber-500 text-stone-950 shadow-md'
-                : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
-            }`}
-          >
-            <Utensils className="w-4 h-4" /> Menu ({menuItems.length})
-          </button>
+          {canManageMenu && (
+            <button
+              onClick={() => setActiveTab('menu')}
+              className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === 'menu'
+                  ? 'bg-amber-500 text-stone-950 shadow-md'
+                  : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
+              }`}
+            >
+              <Utensils className="w-4 h-4" /> Menu ({menuItems.length})
+            </button>
+          )}
 
           {/* Billing */}
-          <button
-            onClick={() => setActiveTab('billing')}
-            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
-              activeTab === 'billing'
-                ? 'bg-amber-500 text-stone-950 shadow-md'
-                : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
-            }`}
-          >
-            <Receipt className="w-4 h-4" /> Billing & POS
-          </button>
+          {canViewBilling && (
+            <button
+              onClick={() => setActiveTab('billing')}
+              className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === 'billing'
+                  ? 'bg-amber-500 text-stone-950 shadow-md'
+                  : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
+              }`}
+            >
+              <Receipt className="w-4 h-4" /> Billing & POS
+            </button>
+          )}
 
           {/* Sales */}
-          <button
-            onClick={() => setActiveTab('sales')}
-            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
-              activeTab === 'sales'
-                ? 'bg-amber-500 text-stone-950 shadow-md'
-                : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" /> Sales Analytics
-          </button>
+          {canViewBilling && (
+            <button
+              onClick={() => setActiveTab('sales')}
+              className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === 'sales'
+                  ? 'bg-amber-500 text-stone-950 shadow-md'
+                  : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" /> Sales Analytics
+            </button>
+          )}
 
           {/* Settings */}
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
-              activeTab === 'settings'
-                ? 'bg-amber-500 text-stone-950 shadow-md'
-                : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
-            }`}
-          >
-            <Settings className="w-4 h-4" /> Settings
-          </button>
+          {canManageSettings && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 transition whitespace-nowrap ${
+                activeTab === 'settings'
+                  ? 'bg-amber-500 text-stone-950 shadow-md'
+                  : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
+              }`}
+            >
+              <Settings className="w-4 h-4" /> Settings
+            </button>
+          )}
         </div>
       </header>
 
@@ -398,7 +416,7 @@ export const CafeDashboardLayout: React.FC = () => {
           />
         )}
 
-        {activeTab === 'tables' && (
+        {activeTab === 'tables' && canManageTables && (
           <TablesTab
             cafeId={cafe.id}
             cafeName={cafe.name}
@@ -407,14 +425,14 @@ export const CafeDashboardLayout: React.FC = () => {
           />
         )}
 
-        {activeTab === 'menu' && (
+        {activeTab === 'menu' && canManageMenu && (
           <MenuTab
             cafeId={cafe.id}
             categories={categories}
           />
         )}
 
-        {activeTab === 'billing' && (
+        {activeTab === 'billing' && canViewBilling && (
           <BillingTab
             cafeId={cafe.id}
             cafeName={cafe.name}
@@ -425,7 +443,7 @@ export const CafeDashboardLayout: React.FC = () => {
           />
         )}
 
-        {activeTab === 'sales' && (
+        {activeTab === 'sales' && canViewBilling && (
           <SalesTab
             cafeId={cafe.id}
             orders={orders}
@@ -434,7 +452,7 @@ export const CafeDashboardLayout: React.FC = () => {
           />
         )}
 
-        {activeTab === 'settings' && (
+        {activeTab === 'settings' && canManageSettings && (
           <SettingsTab
             cafeId={cafe.id}
             cafe={cafe}

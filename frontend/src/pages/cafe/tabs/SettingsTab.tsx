@@ -95,8 +95,14 @@ export const SettingsTab: React.FC<Props> = ({ cafeId, cafe, settings }) => {
         email: staffEmail.trim(),
         ownerName: staffName.trim() || 'Staff Member',
         plan: cafe.plan
+      }, 'staff', {
+        canManageMenu: false,
+        canManageTables: true,
+        canViewBilling: false,
+        canManageBilling: false,
+        canManageStaff: false,
       });
-      setInviteLink(getInviteUrl(invitation.token));
+      setInviteLink(invitation.inviteUrl);
       setStaffEmail('');
       setStaffName('');
     } catch (err: any) {

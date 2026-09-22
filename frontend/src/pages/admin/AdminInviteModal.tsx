@@ -54,7 +54,7 @@ export const AdminInviteModal: React.FC<Props> = ({ cafe, isOpen = true, onClose
     initInvite();
   }, [cafe, existingInvitation]);
 
-  const inviteUrl = invitation ? getInviteUrl(invitation.token) : '';
+  const inviteUrl = invitation ? invitation.inviteUrl || getInviteUrl(invitation.token) : '';
   const planConfig = getPlanConfig(cafe.plan);
 
   const handleCopyLink = () => {

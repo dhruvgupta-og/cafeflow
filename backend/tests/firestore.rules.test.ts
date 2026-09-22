@@ -77,9 +77,9 @@ describe('CafeFlow Firestore Security Rules', () => {
   });
 
   describe('/cafes/{cafeId}/orders', () => {
-    it('allows anonymous CREATE order with valid fields', async () => {
+    it('denies anonymous CREATE order (must use Cloud Function)', async () => {
       const db = testEnv.unauthenticatedContext().firestore();
-      await assertSucceeds(
+      await assertFails(
         db.collection('cafes').doc('cafe-abc').collection('orders').add({
           status: 'New',
           items: [{ name: 'Coffee', qty: 1 }],
@@ -88,15 +88,16 @@ describe('CafeFlow Firestore Security Rules', () => {
       );
     });
 
-    it('denies anonymous CREATE order with invalid status', async () => {
+    it('allows anonymous GET order (for listening to live status)', async () => {
       const db = testEnv.unauthenticatedContext().firestore();
-      await assertFails(
-        db.collection('cafes').doc('cafe-abc').collection('orders').add({
-          status: 'Accepted', // must be "New"
-          items: [{ name: 'Coffee', qty: 1 }],
+      // Setup doc using admin bypass
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('cafes').doc('cafe-abc').collection('orders').doc('order1').set({
+          status: 'New',
           tableId: 'T1'
-        })
-      );
+        });
+      });
+      await assertSucceeds(db.collection('cafes').doc('cafe-abc').collection('orders').doc('order1').get());
     });
 
     it('denies anonymous list /cafes/{cafeId}/orders', async () => {

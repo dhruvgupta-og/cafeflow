@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from './firebase';
 import { Cafe, CafePlan, Invitation } from '../types';
 
 /**
@@ -19,34 +20,30 @@ export const getInviteUrl = (token: string): string => {
 };
 
 /**
- * Create and persist a new invitation in Firestore
+ * Create and persist a new invitation via Cloud Function securely
  */
 export const createCafeInvitation = async (
-  cafe: Pick<Cafe, 'id' | 'name' | 'email' | 'ownerName' | 'plan'>
-): Promise<Invitation> => {
-  const token = generateInviteToken(cafe.id);
-  const now = new Date();
-  // Invitation expires in 14 days
-  const expiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
-
-  const invitation: Invitation = {
-    id: token,
-    token,
+  cafe: Pick<Cafe, 'id' | 'name' | 'email' | 'ownerName' | 'plan'>,
+  invitedRole: 'cafe_owner' | 'staff' = 'cafe_owner',
+  permissions?: any
+): Promise<{ id: string, token: string, inviteUrl: string }> => {
+  const createInviteFn = httpsCallable(functions, 'createInvitation');
+  const result = await createInviteFn({
     cafeId: cafe.id,
     cafeName: cafe.name,
-    ownerEmail: cafe.email,
-    ownerName: cafe.ownerName || 'Cafe Owner',
+    targetEmail: cafe.email,
+    targetName: cafe.ownerName || 'New User',
+    invitedRole,
     plan: cafe.plan || 'Pro',
-    status: 'pending',
-    createdAt: now.toISOString(),
-    expiresAt
+    permissions,
+  });
+
+  const data = result.data as any;
+  return {
+    id: data.token,
+    token: data.token,
+    inviteUrl: `${window.location.origin}${data.inviteUrl}`
   };
-
-  // Write to both root invitations collection and subcollection for ease of retrieval
-  await setDoc(doc(db, 'invitations', token), invitation);
-  await setDoc(doc(db, `cafes/${cafe.id}/invitations`, token), invitation);
-
-  return invitation;
 };
 
 /**

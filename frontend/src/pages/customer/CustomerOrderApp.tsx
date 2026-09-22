@@ -11,7 +11,8 @@ import {
   where,
   orderBy
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../lib/firebase';
 import {
   Cafe,
   Table,
@@ -304,34 +305,24 @@ export const CustomerOrderApp: React.FC = () => {
     setPlacingOrder(true);
 
     try {
-      const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-      const orderItems: OrderItem[] = cart.map(line => ({
+      const orderItems = cart.map(line => ({
         itemId: line.menuItem.id,
-        name: line.menuItem.name,
-        price: line.menuItem.price,
+        categoryId: line.menuItem.categoryId,
         qty: line.qty,
-        addOns: line.selectedAddOns,
-        ...(line.notes ? { notes: line.notes } : {})
+        notes: line.notes,
+        addOns: line.selectedAddOns?.map(a => ({ name: a.name })) || []
       }));
 
-      const newOrder: Order = {
-        id: orderId,
+      // 1. Call secure Cloud Function to compute prices and write order
+      const placeOrderFn = httpsCallable(functions, 'placeOrder');
+      const result = await placeOrderFn({
         cafeId,
         tableId: tableId || 'Walk-in',
-        tableLabel: table?.label || `Table ${tableId}`,
         items: orderItems,
-        subtotal: Number(cartSubtotal.toFixed(2)),
-        tax: Number(cartTax.toFixed(2)),
-        serviceCharge: Number(cartService.toFixed(2)),
-        total: Number(cartTotal.toFixed(2)),
-        status: 'New',
-        ...(tableOrderNotes.trim() ? { notes: tableOrderNotes.trim() } : {}),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      // 1. Write order doc
-      await setDoc(doc(db, `cafes/${cafeId}/orders`, orderId), newOrder);
+        customerName: 'Guest',
+      });
+      const data = result.data as any;
+      const orderId = data.orderId;
 
       // 2. Set table occupied
       if (tableId) {

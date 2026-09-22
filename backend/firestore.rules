@@ -96,22 +96,16 @@ service cloud.firestore {
 
       // ── /cafes/{cafeId}/orders ─────────────────────────────────────────────
       match /orders/{orderId} {
-        // Staff can read and update any order for their cafe.
-        allow read:   if canAccessCafe(cafeId);
+        // Customers can GET their specific order to listen for updates.
+        // Staff can LIST and GET any order for their cafe.
+        allow get:    if true;
+        allow list:   if canAccessCafe(cafeId);
         allow update: if canAccessCafe(cafeId);
         allow delete: if isPlatformAdmin();
 
-        // Customers (unauthenticated) can CREATE an order with validated fields:
-        //  - status must start as "New"
-        //  - items must be a non-empty list
-        //  - tableId must be a non-empty string
-        // Price validation against the live menu must be done server-side in the
-        // Cloud Function that processes the order (client prices are untrusted).
-        allow create: if request.resource.data.status == 'New'
-                      && request.resource.data.items is list
-                      && request.resource.data.items.size() > 0
-                      && request.resource.data.tableId is string
-                      && request.resource.data.tableId.size() > 0;
+        // Order CREATION is now locked down to Admin SDK / Cloud Functions only (`placeOrder`)
+        // to securely validate prices on the server.
+        allow create: if false;
       }
 
       // ── /cafes/{cafeId}/bills ──────────────────────────────────────────────
