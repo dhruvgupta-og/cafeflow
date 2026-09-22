@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Cafe, Invitation } from '../../types';
-import { createCafeInvitation, getInviteUrl } from '../../lib/invitations';
+import { createCafeInvitation, getInviteUrl, InvitationResult } from '../../lib/invitations';
 import { getPlanConfig } from '../../lib/plans';
 import {
   X,
@@ -21,13 +21,13 @@ interface Props {
   cafe: Cafe | null;
   isOpen?: boolean;
   onClose: () => void;
-  existingInvitation?: Invitation | null;
+  existingInvitation?: InvitationResult | null;
 }
 
 export const AdminInviteModal: React.FC<Props> = ({ cafe, isOpen = true, onClose, existingInvitation }) => {
   if (!isOpen || !cafe) return null;
 
-  const [invitation, setInvitation] = useState<Invitation | null>(existingInvitation || null);
+  const [invitation, setInvitation] = useState<InvitationResult | null>(existingInvitation || null);
   const [loading, setLoading] = useState(!existingInvitation);
   const [copied, setCopied] = useState(false);
 

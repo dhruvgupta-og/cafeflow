@@ -18,7 +18,8 @@ import {
   MenuItem,
   Order,
   Bill,
-  CafeAlert
+  CafeAlert,
+  StaffPermissions
 } from '../../types';
 import {
   LiveOrdersTab
@@ -65,7 +66,7 @@ export const CafeDashboardLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'orders' | 'tables' | 'menu' | 'billing' | 'sales' | 'settings'>('orders');
 
   const isOwner = userProfile?.role === 'cafe_owner' || userProfile?.role === 'platform_admin';
-  const perms = userProfile?.permissions || {};
+  const perms: Partial<StaffPermissions> = userProfile?.permissions || {};
   
   const canManageTables = isOwner || perms.canManageTables;
   const canManageMenu = isOwner || perms.canManageMenu;

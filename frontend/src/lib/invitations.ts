@@ -20,13 +20,23 @@ export const getInviteUrl = (token: string): string => {
 };
 
 /**
+ * Shape returned by createCafeInvitation (Cloud Function result).
+ * Smaller than the full Invitation document — only what the frontend needs.
+ */
+export interface InvitationResult {
+  id: string;
+  token: string;
+  inviteUrl: string;
+}
+
+/**
  * Create and persist a new invitation via Cloud Function securely
  */
 export const createCafeInvitation = async (
   cafe: Pick<Cafe, 'id' | 'name' | 'email' | 'ownerName' | 'plan'>,
   invitedRole: 'cafe_owner' | 'staff' = 'cafe_owner',
   permissions?: any
-): Promise<{ id: string, token: string, inviteUrl: string }> => {
+): Promise<InvitationResult> => {
   const createInviteFn = httpsCallable(functions, 'createInvitation');
   const result = await createInviteFn({
     cafeId: cafe.id,
